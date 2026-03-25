@@ -29,8 +29,8 @@ import org.jivesoftware.spark.ui.history.HistoryWindow;
 import org.jivesoftware.spark.util.ModelUtil;
 import org.jivesoftware.spark.util.TaskEngine;
 import org.jivesoftware.spark.util.log.Log;
-import org.jivesoftware.sparkimpl.plugin.manager.Enterprise;
 import org.jivesoftware.sparkimpl.plugin.emoticons.EmoticonManager;
+import org.jivesoftware.sparkimpl.plugin.manager.Enterprise;
 import org.jivesoftware.sparkimpl.settings.local.LocalPreferences;
 import org.jivesoftware.sparkimpl.settings.local.SettingsManager;
 import org.jxmpp.util.XmppStringUtils;
@@ -336,12 +336,59 @@ public class TranscriptWindow extends ChatArea implements ContextMenuListener
      * @param message the message to insert.
      * @param date    the timestamp of the message.
      */
-    public void insertHistoryMessage( String userid, String message, Date date )
+    public void insertHistoryMessage( String userid, Message message, Date date )
+    {
+        for ( TranscriptWindowInterceptor interceptor : SparkManager.getChatManager().getTranscriptWindowInterceptors() )
+        {
+            try
+            {
+                boolean handled = interceptor.isHistoryMessageIntercepted( this, userid, message, date );
+                if ( handled )
+                {
+                    // Do nothing.
+                    return;
+                }
+            }
+            catch ( Exception e )
+            {
+                Log.error( "A TranscriptWindowInterceptor ('" + interceptor + "') threw an exception while processing a chat history message (current user: '" + userid + "').", e );
+            }
+        }
+
+        final ZonedDateTime sentDate = date.toInstant().atZone( ZoneOffset.UTC );
+        final Color historyColor = (Color) UIManager.get( "History.foreground" );
+
+        add( new MessageEntry( sentDate, true, userid, historyColor, message.getBody(), historyColor ) );
+    }
+
+    /**
+     * Adds a historic text message to this transcript window. These typically are messages that were added to a chat before the local user joined the chat.
+     *
+     * @param userid  the userid of the sender.
+     * @param message the message to insert.
+     * @param date    the timestamp of the message.
+     */
+    public void insertHistoryMessage( String userid, String message, Date date)
+    {
+        insertHistoryMessage(userid, message, date, Map.of());
+    }
+
+    /**
+     * Adds a tagged historic text message to this transcript window. This is the same as {@link #insertHistoryMessage(String, Message, Date)}, except custom style(s) can be applied to specific part(s) of the message using Asciidoc-like
+     * <a href="https://docs.asciidoctor.org/asciidoc/latest/text/custom-inline-styles/">Custom Inline Styles</a>:
+     * <p>{@code [.style-name]#my styled text#} will have the effect of applying the style corresponding to {@code style-name} in {@code customStyles} parameter, to the text between {@code #} characters.
+     *
+     * @param userid  the userid of the sender.
+     * @param message the message to insert.
+     * @param date    the timestamp of the message.
+     * @param customStyles custom styles to be applied to the parts of the message between {@code #} and following {@code [.style-name]} where {@code style-name} is the key identifying the style attributes in this parameter.
+     */
+    public void insertHistoryMessage( String userid, String message, Date date, Map<String, AttributeSet> customStyles)
     {
         final ZonedDateTime sentDate = date.toInstant().atZone( ZoneOffset.UTC );
         final Color historyColor = (Color) UIManager.get( "History.foreground" );
 
-        add( new MessageEntry( sentDate, true, userid, historyColor, message, historyColor ) );
+        add( new MessageEntry( sentDate, true, userid, historyColor, message, historyColor, null, customStyles ) );
     }
 
     public void insertHorizontalLine()

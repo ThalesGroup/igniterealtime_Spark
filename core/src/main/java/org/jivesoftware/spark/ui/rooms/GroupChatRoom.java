@@ -46,7 +46,6 @@ import org.jivesoftware.spark.ui.conferences.ConferenceUtils;
 import org.jivesoftware.spark.ui.conferences.DataFormDialog;
 import org.jivesoftware.spark.ui.conferences.GroupChatParticipantList;
 import org.jivesoftware.spark.util.ModelUtil;
-import org.jivesoftware.spark.util.SwingWorker;
 import org.jivesoftware.spark.util.UIComponentRegistry;
 import org.jivesoftware.spark.util.log.Log;
 import org.jivesoftware.sparkimpl.settings.local.LocalPreferences;
@@ -626,14 +625,14 @@ public class GroupChatRoom extends ChatRoom
 
             if ( ModelUtil.hasLength( message.getBody() ) )
             {
-                final Resourcepart from = message.getFrom().getResourceOrThrow();
+                final Resourcepart from = message.getFrom().getResourceOrEmpty();
 
                 if ( inf != null )
                 {
                     // This is part of the MUC history. No need to add it to the transcript again.
 
                     // Add to the UI component that shows the chat.
-                    getTranscriptWindow().insertHistoryMessage( from.toString(), message.getBody(), sentDate );
+                    getTranscriptWindow().insertHistoryMessage( from.toString(), message, sentDate );
                 }
                 else
                 {
@@ -643,9 +642,9 @@ public class GroupChatRoom extends ChatRoom
                         return;
                     }
 
-                    final boolean isFromRoom = !message.getFrom().hasNoResource();
+                    final boolean isFromRoomOccupant = message.getFrom().hasResource();
 
-                    if ( !isFromRoom && SparkManager.getUserManager().getOccupant( this, from ) == null )
+                    if ( isFromRoomOccupant && SparkManager.getUserManager().getOccupant( this, from ) == null )
                     {
                         return;
                     }
